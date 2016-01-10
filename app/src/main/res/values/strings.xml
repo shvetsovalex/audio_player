@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Audio Player</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="status_idle">Status: Idle</string>
+    <string name="status_playing">Status: Playing</string>
+    <string name="status_paused">Status: Paused</string>
+    <string name="playing_error">Playing error</string>
+</resources>
