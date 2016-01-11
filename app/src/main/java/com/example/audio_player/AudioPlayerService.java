@@ -1,5 +1,8 @@
 package com.example.audio_player;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ContentUris;
 import android.content.Intent;
@@ -20,10 +23,10 @@ public class AudioPlayerService extends Service {
     protected final static int PAUSE_STATUS = 1;
     protected final static int IDLE_STATUS = 2;
     protected final static int ERROR_STATUS = 3;
-    protected final static int START_PLAYING_STATUS = 4;
     protected final static String ACTION_PROGRESS = "com.example.audio_player.Status";
     protected static final String STATUS_EXTRA = "status";
     protected static final String PROGRESS_EXTRA = "progress";
+    private static final int NOTIFICATION_ID = 1;
     private static final int UPDATE_DELAY = 200;
     private int status = IDLE_STATUS;
     private ExecutorService executor;
@@ -40,7 +43,7 @@ public class AudioPlayerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, String.valueOf(startId));
-        return START_NOT_STICKY;
+        return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
@@ -49,39 +52,54 @@ public class AudioPlayerService extends Service {
         return binder;
     }
 
+    private Notification createNotification() {
+        Intent intent = new Intent(this, AudioPlayerActivity.class);
+        PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent, 0);
+
+        Notification.Builder builder = new Notification.Builder(AudioPlayerService.this);
+        builder.setSmallIcon(R.mipmap.ic_launcher);
+        builder.setContentTitle("Audio Player");
+        builder.setContentText("Music is playing");
+        builder.setContentIntent(pIntent);
+        builder.setWhen(System.currentTimeMillis());
+
+        Notification notification = builder.getNotification();
+        return notification;
+    }
+
     protected void onChangeState(int newStatus) {
         status = newStatus;
         switch (status) {
-            case START_PLAYING_STATUS: {
-                mediaPlayer = MediaPlayer.create(this, R.raw.tfk_phenomenon);
-                duration = mediaPlayer.getDuration();
-                mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                    @Override
-                    public void onCompletion(MediaPlayer mp) {
-                        executor.execute(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    releaseMP();
-                                } catch (Exception e) {
-                                    e.printStackTrace();
+            case PLAYING_STATUS: {
+                if(!isPlaying()) {
+                    mediaPlayer = MediaPlayer.create(this, R.raw.tfk_phenomenon);
+                    duration = mediaPlayer.getDuration();
+                    mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                        @Override
+                        public void onCompletion(MediaPlayer mp) {
+                            executor.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        releaseMP();
+                                    } catch (Exception e) {
+                                        Log.d(TAG, e.getMessage());
+                                    }
                                 }
-                            }
-                        });
-                    }
-                });
+                            });
+                        }
+                    });
+                }
                 mediaPlayer.start();
                 startUpdateProgress();
+                startForeground(NOTIFICATION_ID, createNotification());
                 Log.d(TAG, "START_PLAYING_STATUS Service");
             }
             break;
-            case PLAYING_STATUS:
-                mediaPlayer.start();
-                startUpdateProgress();
-                Log.d(TAG, "PLAYING STATUS Service");
-                break;
+
             case PAUSE_STATUS:
                 Log.d(TAG, "PAUSE STATUS Service");
+                stopForeground(true);
                 mediaPlayer.pause();
                 break;
         }
@@ -90,7 +108,7 @@ public class AudioPlayerService extends Service {
     private void shareProgress() {
         Intent intent = new Intent(ACTION_PROGRESS);
         intent.putExtra(STATUS_EXTRA, status);
-        if (status == START_PLAYING_STATUS || status == PAUSE_STATUS || status == PLAYING_STATUS) {
+        if (isPlaying()) {
             intent.putExtra(PROGRESS_EXTRA, getProgress());
         }
         sendBroadcast(intent);
@@ -106,7 +124,7 @@ public class AudioPlayerService extends Service {
                         shareProgress();
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Log.d(TAG, e.getMessage());
                 }
             }
         };

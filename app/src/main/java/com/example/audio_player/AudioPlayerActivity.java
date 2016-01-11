@@ -103,29 +103,21 @@ public class AudioPlayerActivity extends Activity {
 
     private void changeStatus() {
         switch (status) {
-            case AudioPlayerService.IDLE_STATUS: {
-                status = AudioPlayerService.START_PLAYING_STATUS;
-            }
-            break;
-            case AudioPlayerService.PLAYING_STATUS: {
-                status = AudioPlayerService.PAUSE_STATUS;
-            }
-            break;
-
-            case AudioPlayerService.START_PLAYING_STATUS: {
-                status = AudioPlayerService.PAUSE_STATUS;
-            }
-            break;
-
-            case AudioPlayerService.PAUSE_STATUS: {
+            case AudioPlayerService.IDLE_STATUS:
                 status = AudioPlayerService.PLAYING_STATUS;
-            }
-            break;
+                break;
 
-            case AudioPlayerService.ERROR_STATUS: {
+            case AudioPlayerService.PLAYING_STATUS:
+                status = AudioPlayerService.PAUSE_STATUS;
+                break;
+
+            case AudioPlayerService.PAUSE_STATUS:
+                status = AudioPlayerService.PLAYING_STATUS;
+                break;
+
+            case AudioPlayerService.ERROR_STATUS:
                 status = AudioPlayerService.IDLE_STATUS;
-            }
-            break;
+                break;
         }
     }
 
@@ -134,19 +126,10 @@ public class AudioPlayerActivity extends Activity {
             case AudioPlayerService.IDLE_STATUS: {
                 btnPlay.setText(R.string.play);
 
-                progressBar.setVisibility(View.GONE);
+                progressBar.setVisibility(View.INVISIBLE);
                 progressBar.setProgress(0);
 
                 statusLabel.setText(R.string.status_idle);
-            }
-            break;
-
-            case AudioPlayerService.START_PLAYING_STATUS: {
-                progressBar.setVisibility(View.VISIBLE);
-                progressBar.setProgress(progress);
-                btnPlay.setText(R.string.pause);
-
-                statusLabel.setText(R.string.status_playing);
             }
             break;
 
@@ -154,7 +137,6 @@ public class AudioPlayerActivity extends Activity {
                 progressBar.setVisibility(View.VISIBLE);
                 progressBar.setProgress(progress);
                 btnPlay.setText(R.string.pause);
-
                 statusLabel.setText(R.string.status_playing);
             }
             break;
