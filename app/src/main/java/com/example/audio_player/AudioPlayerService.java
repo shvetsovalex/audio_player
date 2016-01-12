@@ -14,6 +14,8 @@ import android.os.IBinder;
 import android.util.Log;
 
 import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -33,6 +35,8 @@ public class AudioPlayerService extends Service {
     private int duration;
     MediaPlayer mediaPlayer;
     MPBinder binder = new MPBinder();
+    private int progress;
+    private Timer delayTimer;
 
     @Override
     public void onCreate() {
@@ -71,22 +75,19 @@ public class AudioPlayerService extends Service {
         status = newStatus;
         switch (status) {
             case PLAYING_STATUS: {
-                if(!isPlaying()) {
+                if (!isPlaying()) {
                     mediaPlayer = MediaPlayer.create(this, R.raw.tfk_phenomenon);
                     duration = mediaPlayer.getDuration();
                     mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
                         @Override
                         public void onCompletion(MediaPlayer mp) {
-                            executor.execute(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        releaseMP();
-                                    } catch (Exception e) {
-                                        Log.d(TAG, e.getMessage());
-                                    }
-                                }
-                            });
+                            try {
+                                if (delayTimer != null)
+                                    delayTimer.cancel();
+                                releaseMP();
+                            } catch (Exception e) {
+                                Log.d(TAG, e.getMessage());
+                            }
                         }
                     });
                 }
@@ -115,20 +116,27 @@ public class AudioPlayerService extends Service {
     }
 
     private void startUpdateProgress() {
-        Runnable updateProgress = new Runnable() {
+        Runnable runUpdate = new Runnable() {
             @Override
             public void run() {
-                try {
-                    while (mediaPlayer.isPlaying()) {
-                        Thread.sleep(UPDATE_DELAY);
-                        shareProgress();
-                    }
-                } catch (Exception e) {
-                    Log.d(TAG, e.getMessage());
+                delayTimer = new Timer();
+                while (mediaPlayer.isPlaying()) {
+                    TimerTask timerTask = new TimerTask() {
+                        @Override
+                        public void run() {
+                            if (getProgress() != progress) {
+                                shareProgress();
+                                progress = getProgress();
+                            }
+
+                        }
+                    };
+                    delayTimer.schedule(timerTask, UPDATE_DELAY);
                 }
+                delayTimer.cancel();
             }
         };
-        executor.execute(updateProgress);
+        executor.execute(runUpdate);
     }
 
     protected int getProgress() {
@@ -152,8 +160,9 @@ public class AudioPlayerService extends Service {
                 mediaPlayer.release();
                 mediaPlayer = null;
                 shareProgress();
+                delayTimer = null;
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.d(TAG, e.getMessage());
             }
         }
     }
